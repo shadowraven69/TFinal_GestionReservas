@@ -1,155 +1,87 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
 
-from app.db.session import get_db
-from app.models.espacio import Espacio
-from app.schemas.espacio import Espacio, EspacioCreate, EspacioUpdate
-from app.core.security import get_current_active_user, get_current_admin_user
+from app.crud.espacios import create_espacio, get_espacio_by_nombre, update_espacio
+from app.db import get_db
+from app.deps import get_current_user, require_admin
+from app.models import Espacio
 from app.models.usuario import Usuario
+from app.schemas.espacio import EspacioCreate, EspacioResponse, EspacioUpdate
 
-router = APIRouter()
 
-@router.post("/", response_model=Espacio, status_code=status.HTTP_201_CREATED)
-def create_espacio(
-    *,
-    db: Session = Depends(get_db),
-    espacio_in: EspacioCreate,
-    current_user: Usuario = Depends(get_current_admin_user)
-):
-    """
-    Crear un nuevo espacio institucional. Solo para administradores.
-    """
-    # Verificar si ya existe un espacio con el mismo nombre
-    db_espacio = db.query(Espacio).filter(Espacio.nombre == espacio_in.nombre).first()
-    if db_espacio:
-        raise HTTPException(
-            status_code=400,
-            detail="Ya existe un espacio con este nombre"
-        )
-    
-    # Validar el estado
-    if espacio_in.estado not in ["activo", "inactivo", "mantenimiento"]:
-        raise HTTPException(
-            status_code=400,
-            detail="Estado inválido. Debe ser: activo, inactivo o mantenimiento"
-        )
-    
-    # Validar capacidad positiva
-    if espacio_in.capacidad <= 0:
-        raise HTTPException(
-            status_code=400,
-            detail="La capacidad debe ser un número positivo"
-        )
-    
-    espacio = Espacio(**espacio_in.dict())
-    db.add(espacio)
-    db.commit()
-    db.refresh(espacio)
-    return espacio
+router = APIRouter(prefix="/espacios", tags=["espacios"])
 
-@router.get("/", response_model=List[Espacio])
-def read_espacios(
+
+@router.get("", response_model=list[EspacioResponse])
+def listar_espacios(
     db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 100,
-    estado: str = None,
-    current_user: Usuario = Depends(get_current_active_user)
 ):
-    """
-    Obtener lista de espacios institucionales.
-    Los usuarios autenticados pueden ver todos los espacios.
-    Los administradores pueden filtrar por estado opcionalmente.
-    """
-    query = db.query(Espacio)
-    
-    # Si se especifica un estado, filtrar por él
-    if estado:
-        query = query.filter(Espacio.estado == estado)
-    
-    espacios = query.offset(skip).limit(limit).all()
-    return espacios
+    """Listar espacios públicos. No requiere autenticación."""
+    return db.query(Espacio).order_by(Espacio.nombre.asc()).offset(skip).limit(limit).all()
 
-@router.get("/{id_espacio}", response_model=Espacio)
-def read_espacio(
-    *,
+
+@router.get("/{espacio_id}", response_model=EspacioResponse)
+def obtener_espacio(
+    espacio_id: int,
     db: Session = Depends(get_db),
-    id_espacio: int,
-    current_user: Usuario = Depends(get_current_active_user)
 ):
-    """
-    Obtener un espacio institucional específico por su ID.
-    """
-    espacio = db.query(Espacio).filter(Espacio.id_espacio == id_espacio).first()
+    """Obtener un espacio por ID."""
+    espacio = db.query(Espacio).filter(Espacio.id == espacio_id).first()
     if not espacio:
         raise HTTPException(
-            status_code=404,
-            detail="Espacio no encontrado"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Espacio no encontrado",
         )
     return espacio
 
-@router.put("/{id_espacio}", response_model=Espacio)
-def update_espacio(
-    *,
+
+@router.post("", response_model=EspacioResponse, status_code=status.HTTP_201_CREATED)
+def crear_espacio(
+    payload: EspacioCreate,
+    current_user: Usuario = Depends(require_admin),
     db: Session = Depends(get_db),
-    id_espacio: int,
-    espacio_in: EspacioUpdate,
-    current_user: Usuario = Depends(get_current_admin_user)
 ):
-    """
-    Actualizar un espacio institucional. Solo para administradores.
-    """
-    espacio = db.query(Espacio).filter(Espacio.id_espacio == id_espacio).first()
-    if not espacio:
+    """Crear un espacio. Solo admin."""
+    if get_espacio_by_nombre(db, payload.nombre) is not None:
         raise HTTPException(
-            status_code=404,
-            detail="Espacio no encontrado"
+            status_code=status.HTTP_409_CONFLICT,
+            detail="El nombre del espacio ya existe",
         )
-    
-    # Validar el estado si se proporciona
-    if espacio_in.estado is not None:
-        if espacio_in.estado not in ["activo", "inactivo", "mantenimiento"]:
-            raise HTTPException(
-                status_code=400,
-                detail="Estado inválido. Debe ser: activo, inactivo o mantenimiento"
-            )
-    
-    # Validar capacidad si se proporciona
-    if espacio_in.capacidad is not None and espacio_in.capacidad <= 0:
+    return create_espacio(db, payload)
+
+
+@router.put("/{espacio_id}", response_model=EspacioResponse)
+def actualizar_espacio(
+    espacio_id: int,
+    payload: EspacioUpdate,
+    current_user: Usuario = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Actualizar un espacio. Solo admin."""
+    espacio = update_espacio(db, espacio_id, payload)
+    if espacio is None:
         raise HTTPException(
-            status_code=400,
-            detail="La capacidad debe ser un número positivo"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Espacio no encontrado",
         )
-    
-    # Actualizar solo los campos proporcionados
-    update_data = espacio_in.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(espacio, field, value)
-    
-    db.add(espacio)
-    db.commit()
-    db.refresh(espacio)
     return espacio
 
-@router.delete("/{id_espacio}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_espacio(
-    *,
+
+@router.delete("/{espacio_id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_espacio(
+    espacio_id: int,
+    current_user: Usuario = Depends(require_admin),
     db: Session = Depends(get_db),
-    id_espacio: int,
-    current_user: Usuario = Depends(get_current_admin_user)
 ):
-    """
-    Eliminar un espacio institucional. Solo para administradores.
-    """
-    espacio = db.query(Espacio).filter(Espacio.id_espacio == id_espacio).first()
+    """Eliminar un espacio. Solo admin."""
+    espacio = db.query(Espacio).filter(Espacio.id == espacio_id).first()
     if not espacio:
         raise HTTPException(
-            status_code=404,
-            detail="Espacio no encontrado"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Espacio no encontrado",
         )
-    
-    # Verificar si el espacio tiene reservas activas (esto se haría en el módulo de reservas)
-    # Por ahora, eliminamos directamente
     db.delete(espacio)
     db.commit()
     return None
