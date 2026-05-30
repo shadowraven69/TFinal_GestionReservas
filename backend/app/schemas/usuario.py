@@ -38,6 +38,12 @@ class UsuarioCreate(BaseModel):
     email: str = Field(max_length=255)
     password: str = Field(min_length=6)
 
+
+class AdminUsuarioCreate(UsuarioCreate):
+    """Permite al admin asignar un rol al crear un usuario."""
+
+    rol: str = Field(default="usuario", pattern="^(admin|usuario)$")
+
     @field_validator("email")
     @classmethod
     def validate_email(cls, value: str) -> str:

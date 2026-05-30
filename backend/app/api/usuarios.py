@@ -5,7 +5,7 @@ from app.crud.usuarios import create_usuario, get_usuario_by_email, get_usuario_
 from app.db import get_db
 from app.deps import get_current_user, require_admin
 from app.models.usuario import Usuario
-from app.schemas.usuario import UsuarioCreate, UsuarioResponse
+from app.schemas.usuario import AdminUsuarioCreate, UsuarioCreate, UsuarioResponse
 
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
@@ -26,7 +26,7 @@ def list_usuarios(
 
 @router.post("", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
 def create_usuario_admin(
-    payload: UsuarioCreate,
+    payload: AdminUsuarioCreate,
     current_user: Usuario = Depends(require_admin),
     db: Session = Depends(get_db),
 ):

@@ -26,11 +26,13 @@ export default function Navbar() {
               <>
                 <Link href="/admin/reservas">Reservas</Link>
                 <Link href="/usuarios">Usuarios</Link>
+                <Link href="/espacios">Espacios</Link>
               </>
             ) : (
               <>
                 <Link href="/reservas/nueva">Nueva Reserva</Link>
                 <Link href="/reservas/mis-reservas">Mis Reservas</Link>
+                <Link href="/espacios">Espacios</Link>
               </>
             )}
             <span className="navbar-user">{user?.username}</span>
