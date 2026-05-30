@@ -2,47 +2,45 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:15-alpine
-    container_name: pf_db
+    image: postgres:13
+    container_name: reservas_db
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-pf_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pf_password}
-      POSTGRES_DB: ${POSTGRES_DB:-pf_reservas}
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: reservas_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
+    ports:
+      - "5432:5432"
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: pf_backend
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-pf_user}:${POSTGRES_PASSWORD:-pf_password}@db:5432/${POSTGRES_DB:-pf_reservas}
-      - SECRET_KEY=${SECRET_KEY:-supersecretkey}
-    ports:
-      - "8000:8000"
+    build: ./backend
+    container_name: reservas_backend
+    restart: unless-stopped
+    env_file:
+      - .env
     depends_on:
       - db
-    restart: unless-stopped
+    ports:
+      - "8000:8000"
     volumes:
-      # Sincroniza el código en tiempo real para el hot-reload en desarrollo
       - ./backend:/app
+      - /app/node_modules  # Para evitar sobrescribir node_modules en el contenedor
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: pf_frontend
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-    ports:
-      - "3000:3000"
+    build: ./frontend
+    container_name: reservas_frontend
+    restart: unless-stopped
+    env_file:
+      - .env
     depends_on:
       - backend
-    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
 
 volumes:
   postgres_data:
