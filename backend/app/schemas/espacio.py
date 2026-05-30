@@ -1,23 +1,22 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, ConfigDict, Field
 
-class EspacioBase(BaseModel):
+
+class EspacioResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
     nombre: str
-    ubicacion: str
     capacidad: int
-    estado: str = "activo"
+    estado: str
 
-class EspacioCreate(EspacioBase):
-    pass
+
+class EspacioCreate(BaseModel):
+    nombre: str = Field(min_length=1, max_length=120)
+    capacidad: int = Field(gt=0)
+    estado: str = Field(default="activo", pattern=r"^(activo|inactivo|mantenimiento)$")
+
 
 class EspacioUpdate(BaseModel):
-    nombre: Optional[str] = None
-    ubicacion: Optional[str] = None
-    capacidad: Optional[int] = None
-    estado: Optional[str] = None
-
-class Espacio(EspacioBase):
-    id_espacio: int
-
-    class Config:
-        orm_mode = True
+    nombre: str | None = Field(default=None, min_length=1, max_length=120)
+    capacidad: int | None = Field(default=None, gt=0)
+    estado: str | None = Field(default=None, pattern=r"^(activo|inactivo|mantenimiento)$")
