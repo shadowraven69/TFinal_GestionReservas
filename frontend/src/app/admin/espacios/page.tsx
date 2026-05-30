@@ -76,12 +76,22 @@ export default function AdminEspaciosPage() {
     }
   }
 
+  const estadoSiguiente: Record<string, string> = {
+    activo: 'inactivo',
+    inactivo: 'mantenimiento',
+    mantenimiento: 'activo',
+  };
+
+  const etiquetaEstado: Record<string, string> = {
+    activo: 'Desactivar',
+    inactivo: 'Mantenimiento',
+    mantenimiento: 'Activar',
+  };
+
   async function handleToggleEstado(espacio: Espacio) {
     setError(null);
     try {
-      const nuevoEstado: 'activo' | 'inactivo' =
-        espacio.estado === 'activo' ? 'inactivo' : 'activo';
-      await actualizarEspacio(espacio.id, { estado: nuevoEstado } satisfies EspacioUpdate);
+      await actualizarEspacio(espacio.id, { estado: estadoSiguiente[espacio.estado] ?? 'activo' } satisfies EspacioUpdate);
       await loadEspacios();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo cambiar el estado');
@@ -171,7 +181,7 @@ export default function AdminEspaciosPage() {
                           <input
                             value={editing.nombre}
                             onChange={(e) => setEditing({ ...editing, nombre: e.target.value })}
-                            minLength={3}
+              minLength={1}
                             maxLength={120}
                           />
                         </td>
@@ -203,7 +213,7 @@ export default function AdminEspaciosPage() {
                             Editar
                           </button>
                           <button onClick={() => handleToggleEstado(espacio)} type="button">
-                            {espacio.estado === 'activo' ? 'Desactivar' : 'Activar'}
+                            {etiquetaEstado[espacio.estado] ?? 'Cambiar Estado'}
                           </button>
                         </td>
                       </>
