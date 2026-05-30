@@ -9,7 +9,7 @@ export async function parseApiError(response: Response): Promise<string> {
   try {
     const body = await response.json();
     if (typeof body.detail === 'string') return body.detail;
-    if (Array.isArray(body.detail)) return body.detail.map((item) => item.msg ?? JSON.stringify(item)).join(', ');
+    if (Array.isArray(body.detail)) return body.detail.map((item: { msg?: string }) => item.msg ?? JSON.stringify(item)).join(', ');
     return JSON.stringify(body.detail ?? body);
   } catch {
     return `Error HTTP ${response.status}`;

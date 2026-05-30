@@ -76,7 +76,7 @@ export default function AdminEspaciosPage() {
     }
   }
 
-  const estadoSiguiente: Record<string, string> = {
+  const estadoSiguiente: Record<string, 'activo' | 'inactivo' | 'mantenimiento'> = {
     activo: 'inactivo',
     inactivo: 'mantenimiento',
     mantenimiento: 'activo',
