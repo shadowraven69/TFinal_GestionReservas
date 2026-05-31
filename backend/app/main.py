@@ -50,6 +50,10 @@ def seed_admin_user() -> None:
     db: Session = SessionLocal()
     try:
         from app.models.usuario import Usuario
+        from app.initial_data.espacios import init_espacios
+
+        # Poblar espacios iniciales
+        init_espacios(db)
 
         admin = db.query(Usuario).filter(Usuario.rol == "admin").first()
         if admin is not None:

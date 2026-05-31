@@ -17,17 +17,23 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         detail="No se pudo validar la autenticación",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    print("Received token:", token)
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         user_id = payload.get("sub")
+        print("Decoded user_id:", user_id)
         if user_id is None:
+            print("user_id is None")
             raise credentials_exception
     except JWTError as exc:
+        print("JWTError:", exc)
         raise credentials_exception from exc
 
     usuario = db.query(Usuario).filter(Usuario.id == int(user_id)).first()
     if usuario is None:
+        print("usuario is None for id", user_id)
         raise credentials_exception
+    print("Found user:", usuario.username)
     return usuario
 
 

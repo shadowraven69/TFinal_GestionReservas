@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { listarEspacios } from '@/services/espacios';
 import { crearReserva } from '@/services/reservas';
@@ -16,12 +17,19 @@ const initialForm: ReservaCreate = {
 };
 
 export default function NuevaReservaPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [espacios, setEspacios] = useState<Espacio[]>([]);
   const [form, setForm] = useState<ReservaCreate>(initialForm);
   const [created, setCreated] = useState<Reserva | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, authLoading, router]);
 
   useEffect(() => {
     listarEspacios()
@@ -48,12 +56,8 @@ export default function NuevaReservaPage() {
     }
   }
 
-  if (!isAuthenticated) {
-    return (
-      <main className="page">
-        <div className="error">Debes iniciar sesión para crear reservas.</div>
-      </main>
-    );
+  if (authLoading || !isAuthenticated) {
+    return <main className="page"><p>Redirigiendo...</p></main>;
   }
 
   return (

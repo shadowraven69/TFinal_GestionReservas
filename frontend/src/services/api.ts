@@ -27,6 +27,14 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     headers,
   });
 
+  if (response.status === 401 && typeof window !== 'undefined') {
+    // Si el token es invǭlido o expir, limpiamos la sesin y forzamos re-login
+    window.localStorage.removeItem('token');
+    window.localStorage.removeItem('user');
+    window.location.href = '/login';
+    throw new Error('Sesin expirada. Por favor, inicia sesin nuevamente.');
+  }
+
   if (!response.ok) {
     throw new Error(await parseApiError(response));
   }

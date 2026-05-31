@@ -1,15 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { cancelarReserva, listarMisReservas } from '@/services/reservas';
 import type { Reserva } from '@/types/reserva';
 
 export default function MisReservasPage() {
-  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, authLoading, router]);
 
   async function loadReservas() {
     setLoading(true);
@@ -37,12 +45,8 @@ export default function MisReservasPage() {
     }
   }
 
-  if (!isAuthenticated) {
-    return (
-      <main className="page">
-        <div className="error">Debes iniciar sesión para ver tus reservas.</div>
-      </main>
-    );
+  if (authLoading || !isAuthenticated) {
+    return <main className="page"><p>Redirigiendo...</p></main>;
   }
 
   return (

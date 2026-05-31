@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { actualizarEspacio, crearEspacio, listarEspacios } from '@/services/espacios';
 import type { Espacio, EspacioCreate, EspacioUpdate } from '@/types/espacio';
@@ -8,17 +9,20 @@ import type { Espacio, EspacioCreate, EspacioUpdate } from '@/types/espacio';
 interface EditingState {
   id: number;
   nombre: string;
+  ubicacion: string;
   capacidad: number;
 }
 
 export default function AdminEspaciosPage() {
-  const { isAdmin, isAuthenticated } = useAuth();
+  const router = useRouter();
+  const { isAdmin, isAuthenticated, loading: authLoading } = useAuth();
   const [espacios, setEspacios] = useState<Espacio[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   // New-space form
   const [nuevoNombre, setNuevoNombre] = useState('');
+  const [nuevaUbicacion, setNuevaUbicacion] = useState('');
   const [nuevaCapacidad, setNuevaCapacidad] = useState('');
   const [creating, setCreating] = useState(false);
 
@@ -38,20 +42,28 @@ export default function AdminEspaciosPage() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated && isAdmin) void loadEspacios();
-  }, [isAuthenticated, isAdmin, loadEspacios]);
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
+    } else if (isAuthenticated && isAdmin) {
+      void loadEspacios();
+    } else if (!authLoading && isAuthenticated && !isAdmin) {
+      router.push('/');
+    }
+  }, [isAuthenticated, isAdmin, authLoading, loadEspacios, router]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!nuevoNombre.trim() || !nuevaCapacidad) return;
+    if (!nuevoNombre.trim() || !nuevaUbicacion.trim() || !nuevaCapacidad) return;
     setCreating(true);
     setError(null);
     try {
       await crearEspacio({
         nombre: nuevoNombre.trim(),
+        ubicacion: nuevaUbicacion.trim(),
         capacidad: Number(nuevaCapacidad),
       } satisfies EspacioCreate);
       setNuevoNombre('');
+      setNuevaUbicacion('');
       setNuevaCapacidad('');
       await loadEspacios();
     } catch (err) {
@@ -67,6 +79,7 @@ export default function AdminEspaciosPage() {
     try {
       const data: EspacioUpdate = {};
       if (editing.nombre.trim()) data.nombre = editing.nombre.trim();
+      if (editing.ubicacion.trim()) data.ubicacion = editing.ubicacion.trim();
       if (editing.capacidad > 0) data.capacidad = editing.capacidad;
       await actualizarEspacio(id, data);
       setEditing(null);
@@ -99,19 +112,15 @@ export default function AdminEspaciosPage() {
   }
 
   function startEdit(espacio: Espacio) {
-    setEditing({ id: espacio.id, nombre: espacio.nombre, capacidad: espacio.capacidad });
+    setEditing({ id: espacio.id, nombre: espacio.nombre, ubicacion: espacio.ubicacion, capacidad: espacio.capacidad });
   }
 
   function cancelEdit() {
     setEditing(null);
   }
 
-  if (!isAuthenticated || !isAdmin) {
-    return (
-      <main className="page">
-        <div className="error">Solo un administrador puede acceder al panel de espacios.</div>
-      </main>
-    );
+  if (authLoading || !isAuthenticated || !isAdmin) {
+    return <main className="page"><p>Redirigiendo...</p></main>;
   }
 
   return (
@@ -140,6 +149,17 @@ export default function AdminEspaciosPage() {
             />
           </div>
           <div>
+            <label htmlFor="nueva-ubicacion">Ubicación</label>
+            <input
+              id="nueva-ubicacion"
+              value={nuevaUbicacion}
+              onChange={(e) => setNuevaUbicacion(e.target.value)}
+              placeholder="Sede Central"
+              required
+              maxLength={200}
+            />
+          </div>
+          <div>
             <label htmlFor="nueva-capacidad">Capacidad</label>
             <input
               id="nueva-capacidad"
@@ -162,6 +182,7 @@ export default function AdminEspaciosPage() {
             <thead>
               <tr>
                 <th>Nombre</th>
+                <th>Ubicación</th>
                 <th>Capacidad</th>
                 <th>Estado</th>
                 <th>Acciones</th>
@@ -170,7 +191,7 @@ export default function AdminEspaciosPage() {
             <tbody>
               {espacios.length === 0 ? (
                 <tr>
-                  <td colSpan={4}>No hay espacios registrados.</td>
+                  <td colSpan={5}>No hay espacios registrados.</td>
                 </tr>
               ) : (
                 espacios.map((espacio) => (
@@ -181,8 +202,15 @@ export default function AdminEspaciosPage() {
                           <input
                             value={editing.nombre}
                             onChange={(e) => setEditing({ ...editing, nombre: e.target.value })}
-              minLength={1}
+                            minLength={1}
                             maxLength={120}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            value={editing.ubicacion}
+                            onChange={(e) => setEditing({ ...editing, ubicacion: e.target.value })}
+                            maxLength={200}
                           />
                         </td>
                         <td>
@@ -206,6 +234,7 @@ export default function AdminEspaciosPage() {
                     ) : (
                       <>
                         <td>{espacio.nombre}</td>
+                        <td>{espacio.ubicacion}</td>
                         <td>{espacio.capacidad}</td>
                         <td>{espacio.estado}</td>
                         <td>

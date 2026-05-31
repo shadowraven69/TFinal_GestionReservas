@@ -1,17 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { cambiarEstado, listarReservas } from '@/services/reservas';
 import type { Reserva, ReservaEstadoUpdate } from '@/types/reserva';
 
 export default function AdminReservasPage() {
-  const { isAdmin, isAuthenticated } = useAuth();
+  const router = useRouter();
+  const { isAdmin, isAuthenticated, loading: authLoading } = useAuth();
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function loadReservas() {
+  const loadReservas = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -21,11 +23,17 @@ export default function AdminReservasPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    if (isAuthenticated && isAdmin) void loadReservas();
-  }, [isAuthenticated, isAdmin]);
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
+    } else if (isAuthenticated && isAdmin) {
+      void loadReservas();
+    } else if (!authLoading && isAuthenticated && !isAdmin) {
+      router.push('/');
+    }
+  }, [isAuthenticated, isAdmin, authLoading, loadReservas, router]);
 
   async function handleEstado(id: number, nuevo_estado: ReservaEstadoUpdate['nuevo_estado']) {
     setError(null);
@@ -37,12 +45,8 @@ export default function AdminReservasPage() {
     }
   }
 
-  if (!isAuthenticated || !isAdmin) {
-    return (
-      <main className="page">
-        <div className="error">Solo un administrador puede acceder al panel de reservas.</div>
-      </main>
-    );
+  if (authLoading || !isAuthenticated || !isAdmin) {
+    return <main className="page"><p>Redirigiendo...</p></main>;
   }
 
   return (

@@ -6,6 +6,8 @@ from passlib.context import CryptContext
 from app.config import settings
 
 
+from typing import Optional
+
 pwd_context = CryptContext(schemes=["bcrypt"])
 
 
@@ -17,7 +19,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (
         expires_delta if expires_delta is not None else timedelta(minutes=settings.access_token_expire_minutes)
