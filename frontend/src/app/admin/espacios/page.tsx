@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { actualizarEspacio, crearEspacio, listarEspacios } from '@/services/espacios';
 import type { Espacio, EspacioCreate, EspacioUpdate } from '@/types/espacio';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 interface EditingState {
   id: number;
@@ -12,6 +13,24 @@ interface EditingState {
   ubicacion: string;
   capacidad: number;
 }
+
+const estadoBadge: Record<string, string> = {
+  activo: 'badge-success',
+  inactivo: 'badge-neutral',
+  mantenimiento: 'badge-warning',
+};
+
+const estadoSiguiente: Record<string, 'activo' | 'inactivo' | 'mantenimiento'> = {
+  activo: 'inactivo',
+  inactivo: 'mantenimiento',
+  mantenimiento: 'activo',
+};
+
+const etiquetaEstadoSiguiente: Record<string, string> = {
+  activo: 'Desactivar',
+  inactivo: 'Mantenimiento',
+  mantenimiento: 'Activar',
+};
 
 export default function AdminEspaciosPage() {
   const router = useRouter();
@@ -26,7 +45,6 @@ export default function AdminEspaciosPage() {
   const [nuevaCapacidad, setNuevaCapacidad] = useState('');
   const [creating, setCreating] = useState(false);
 
-  // Editing state
   const [editing, setEditing] = useState<EditingState | null>(null);
 
   const loadEspacios = useCallback(async () => {
@@ -89,18 +107,6 @@ export default function AdminEspaciosPage() {
     }
   }
 
-  const estadoSiguiente: Record<string, 'activo' | 'inactivo' | 'mantenimiento'> = {
-    activo: 'inactivo',
-    inactivo: 'mantenimiento',
-    mantenimiento: 'activo',
-  };
-
-  const etiquetaEstado: Record<string, string> = {
-    activo: 'Desactivar',
-    inactivo: 'Mantenimiento',
-    mantenimiento: 'Activar',
-  };
-
   async function handleToggleEstado(espacio: Espacio) {
     setError(null);
     try {
@@ -120,86 +126,93 @@ export default function AdminEspaciosPage() {
   }
 
   if (authLoading || !isAuthenticated || !isAdmin) {
-    return <main className="page"><p>Redirigiendo...</p></main>;
+    return <LoadingSpinner />;
   }
 
   return (
-    <main className="page grid">
-      <section className="card grid">
-        <h1>Administrar espacios</h1>
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-text-primary sm:text-3xl">Administrar espacios</h1>
+        <p className="mt-1 text-text-secondary">Creá y gestioná los espacios institucionales</p>
+      </div>
 
-        {error && <div className="error">{error}</div>}
-        {loading && <p>Cargando espacios...</p>}
+      {error && <div className="message-error mb-6">{error}</div>}
 
-        {/* Inline create form */}
-        <form
-          onSubmit={handleCreate}
-          style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'end' }}
-        >
-          <div>
-            <label htmlFor="nuevo-nombre">Nuevo espacio</label>
+      {/* Create form */}
+      <div className="card mb-6">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-text-muted">Nuevo espacio</h2>
+        <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-3">
+          <label className="input-label flex-1 min-w-[160px]">
+            Nombre
             <input
-              id="nuevo-nombre"
+              className="input"
               value={nuevoNombre}
               onChange={(e) => setNuevoNombre(e.target.value)}
-              placeholder="Nombre"
+              placeholder="Ej. Aula 101"
               required
               minLength={3}
               maxLength={120}
             />
-          </div>
-          <div>
-            <label htmlFor="nueva-ubicacion">Ubicación</label>
+          </label>
+          <label className="input-label flex-1 min-w-[140px]">
+            Ubicación
             <input
-              id="nueva-ubicacion"
+              className="input"
               value={nuevaUbicacion}
               onChange={(e) => setNuevaUbicacion(e.target.value)}
               placeholder="Sede Central"
               required
               maxLength={200}
             />
-          </div>
-          <div>
-            <label htmlFor="nueva-capacidad">Capacidad</label>
+          </label>
+          <label className="input-label w-28">
+            Capacidad
             <input
-              id="nueva-capacidad"
+              className="input"
               type="number"
               value={nuevaCapacidad}
               onChange={(e) => setNuevaCapacidad(e.target.value)}
-              placeholder="Capacidad"
+              placeholder="Ej. 30"
               required
               min={1}
             />
-          </div>
-          <button type="submit" disabled={creating}>
-            {creating ? 'Creando...' : 'Nuevo Espacio'}
+          </label>
+          <button className="btn btn-primary" type="submit" disabled={creating}>
+            {creating ? 'Creando...' : 'Crear espacio'}
           </button>
         </form>
+      </div>
 
-        {/* Table */}
-        {!loading && (
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Ubicación</th>
-                <th>Capacidad</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {espacios.length === 0 ? (
+      {/* Table */}
+      {loading && <LoadingSpinner />}
+
+      {!loading && espacios.length === 0 && (
+        <div className="card py-12 text-center">
+          <p className="text-text-muted">No hay espacios registrados.</p>
+        </div>
+      )}
+
+      {!loading && espacios.length > 0 && (
+        <div className="card p-0 overflow-hidden">
+          <div className="table-wrap">
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={5}>No hay espacios registrados.</td>
+                  <th>Nombre</th>
+                  <th>Ubicación</th>
+                  <th>Capacidad</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
                 </tr>
-              ) : (
-                espacios.map((espacio) => (
+              </thead>
+              <tbody>
+                {espacios.map((espacio) => (
                   <tr key={espacio.id}>
                     {editing?.id === espacio.id ? (
                       <>
                         <td>
                           <input
+                            className="input"
                             value={editing.nombre}
                             onChange={(e) => setEditing({ ...editing, nombre: e.target.value })}
                             minLength={1}
@@ -208,6 +221,7 @@ export default function AdminEspaciosPage() {
                         </td>
                         <td>
                           <input
+                            className="input"
                             value={editing.ubicacion}
                             onChange={(e) => setEditing({ ...editing, ubicacion: e.target.value })}
                             maxLength={200}
@@ -215,45 +229,58 @@ export default function AdminEspaciosPage() {
                         </td>
                         <td>
                           <input
+                            className="input w-20"
                             type="number"
                             value={editing.capacidad}
                             onChange={(e) => setEditing({ ...editing, capacidad: Number(e.target.value) })}
                             min={1}
                           />
                         </td>
-                        <td>{espacio.estado}</td>
                         <td>
-                          <button onClick={() => handleUpdate(espacio.id)} type="button">
-                            Guardar
-                          </button>
-                          <button className="danger" onClick={cancelEdit} type="button">
-                            Cancelar
-                          </button>
+                          <span className={`badge ${estadoBadge[espacio.estado] ?? 'badge-neutral'}`}>
+                            {espacio.estado}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="flex gap-2">
+                            <button className="btn btn-success btn-sm" onClick={() => handleUpdate(espacio.id)} type="button">
+                              Guardar
+                            </button>
+                            <button className="btn btn-secondary btn-sm" onClick={cancelEdit} type="button">
+                              Cancelar
+                            </button>
+                          </div>
                         </td>
                       </>
                     ) : (
                       <>
-                        <td>{espacio.nombre}</td>
+                        <td className="font-medium">{espacio.nombre}</td>
                         <td>{espacio.ubicacion}</td>
                         <td>{espacio.capacidad}</td>
-                        <td>{espacio.estado}</td>
                         <td>
-                          <button onClick={() => startEdit(espacio)} type="button">
-                            Editar
-                          </button>
-                          <button onClick={() => handleToggleEstado(espacio)} type="button">
-                            {etiquetaEstado[espacio.estado] ?? 'Cambiar Estado'}
-                          </button>
+                          <span className={`badge ${estadoBadge[espacio.estado] ?? 'badge-neutral'}`}>
+                            {espacio.estado}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="flex gap-2">
+                            <button className="btn btn-secondary btn-sm" onClick={() => startEdit(espacio)} type="button">
+                              Editar
+                            </button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => handleToggleEstado(espacio)} type="button">
+                              {etiquetaEstadoSiguiente[espacio.estado] ?? 'Cambiar'}
+                            </button>
+                          </div>
                         </td>
                       </>
                     )}
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
-      </section>
-    </main>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

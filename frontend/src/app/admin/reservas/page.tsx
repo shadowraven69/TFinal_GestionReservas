@@ -5,6 +5,21 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { cambiarEstado, listarReservas } from '@/services/reservas';
 import type { Reserva, ReservaEstadoUpdate } from '@/types/reserva';
+import LoadingSpinner from '@/components/LoadingSpinner';
+
+const badgeEstado: Record<string, string> = {
+  esperando: 'badge-warning',
+  aprobada: 'badge-success',
+  rechazada: 'badge-danger',
+  cancelada: 'badge-neutral',
+};
+
+const labelEstado: Record<string, string> = {
+  esperando: 'Pendiente',
+  aprobada: 'Aprobada',
+  rechazada: 'Rechazada',
+  cancelada: 'Cancelada',
+};
 
 export default function AdminReservasPage() {
   const router = useRouter();
@@ -46,51 +61,85 @@ export default function AdminReservasPage() {
   }
 
   if (authLoading || !isAuthenticated || !isAdmin) {
-    return <main className="page"><p>Redirigiendo...</p></main>;
+    return <LoadingSpinner />;
   }
 
   return (
-    <main className="page grid">
-      <section className="card grid">
-        <h1>Administrar reservas</h1>
-        {error && <div className="error">{error}</div>}
-        {loading && <p>Cargando reservas...</p>}
-        <table>
-          <thead>
-            <tr>
-              <th>Usuario</th>
-              <th>Espacio</th>
-              <th>Fecha</th>
-              <th>Horario</th>
-              <th>Asistentes</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reservas.map((reserva) => (
-              <tr key={reserva.id}>
-                <td>{reserva.usuario.username}</td>
-                <td>{reserva.espacio.nombre}</td>
-                <td>{reserva.fecha}</td>
-                <td>{reserva.hora_inicio.slice(0, 5)} - {reserva.hora_fin.slice(0, 5)}</td>
-                <td>{reserva.asistentes}</td>
-                <td>{reserva.estado}</td>
-                <td>
-                  {reserva.estado === 'esperando' ? (
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button onClick={() => handleEstado(reserva.id, 'aprobada')} type="button">Aprobar</button>
-                      <button className="danger" onClick={() => handleEstado(reserva.id, 'rechazada')} type="button">Rechazar</button>
-                    </div>
-                  ) : (
-                    'Sin acciones'
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-    </main>
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-text-primary sm:text-3xl">Administrar reservas</h1>
+        <p className="mt-1 text-text-secondary">Gestioná las solicitudes de reserva</p>
+      </div>
+
+      {error && <div className="message-error mb-6">{error}</div>}
+
+      {loading && <LoadingSpinner />}
+
+      {!loading && reservas.length === 0 && (
+        <div className="card py-12 text-center">
+          <p className="text-text-muted">No hay reservas registradas.</p>
+        </div>
+      )}
+
+      {!loading && reservas.length > 0 && (
+        <div className="card p-0 overflow-hidden">
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Espacio</th>
+                  <th>Fecha</th>
+                  <th>Horario</th>
+                  <th>Asistentes</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reservas.map((reserva) => (
+                  <tr key={reserva.id}>
+                    <td className="font-medium">{reserva.usuario.username}</td>
+                    <td>{reserva.espacio.nombre}</td>
+                    <td>{reserva.fecha}</td>
+                    <td>
+                      {reserva.hora_inicio.slice(0, 5)} - {reserva.hora_fin.slice(0, 5)}
+                    </td>
+                    <td>{reserva.asistentes}</td>
+                    <td>
+                      <span className={`badge ${badgeEstado[reserva.estado] ?? 'badge-neutral'}`}>
+                        {labelEstado[reserva.estado] ?? reserva.estado}
+                      </span>
+                    </td>
+                    <td>
+                      {reserva.estado === 'esperando' ? (
+                        <div className="flex gap-2">
+                          <button
+                            className="btn btn-success btn-sm"
+                            onClick={() => handleEstado(reserva.id, 'aprobada')}
+                            type="button"
+                          >
+                            Aprobar
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleEstado(reserva.id, 'rechazada')}
+                            type="button"
+                          >
+                            Rechazar
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-text-muted">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

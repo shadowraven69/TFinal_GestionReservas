@@ -19,3 +19,9 @@ export interface EspacioUpdate {
   capacidad?: number;
   estado?: 'activo' | 'inactivo' | 'mantenimiento';
 }
+
+export interface DisponibilidadSlot {
+  hora_inicio: string;
+  hora_fin: string;
+  estado: 'libre' | 'ocupado' | 'mantenimiento';
+}

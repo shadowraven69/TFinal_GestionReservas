@@ -1,12 +1,13 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { FormEvent, Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { listarEspacios } from '@/services/espacios';
 import { crearReserva } from '@/services/reservas';
 import type { Espacio } from '@/types/espacio';
 import type { Reserva, ReservaCreate } from '@/types/reserva';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 const initialForm: ReservaCreate = {
   espacio_id: 0,
@@ -16,14 +17,19 @@ const initialForm: ReservaCreate = {
   asistentes: 1,
 };
 
-export default function NuevaReservaPage() {
+function NuevaReservaForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [espacios, setEspacios] = useState<Espacio[]>([]);
-  const [form, setForm] = useState<ReservaCreate>(initialForm);
+  const [form, setForm] = useState<ReservaCreate>(() => ({
+    ...initialForm,
+    espacio_id: Number(searchParams.get('espacio_id')) || 0,
+    fecha: searchParams.get('fecha') || '',
+  }));
   const [created, setCreated] = useState<Reserva | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -34,11 +40,14 @@ export default function NuevaReservaPage() {
   useEffect(() => {
     listarEspacios()
       .then((data) => {
-        setEspacios(data.filter((espacio) => espacio.estado === 'activo'));
-        if (data.length > 0) setForm((current) => ({ ...current, espacio_id: data[0].id }));
+        const activos = data.filter((e) => e.estado === 'activo');
+        setEspacios(activos);
+        if (form.espacio_id === 0 && activos.length > 0) {
+          setForm((current) => ({ ...current, espacio_id: activos[0].id }));
+        }
       })
       .catch((err: Error) => setError(err.message));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,70 +66,109 @@ export default function NuevaReservaPage() {
   }
 
   if (authLoading || !isAuthenticated) {
-    return <main className="page"><p>Redirigiendo...</p></main>;
+    return <LoadingSpinner />;
   }
 
   return (
-    <main className="page grid">
-      <section className="card grid">
-        <h1>Nueva reserva</h1>
-        {error && <div className="error">{error}</div>}
-        {created && <div className="success">Reserva #{created.id} creada en estado {created.estado}.</div>}
+    <div className="mx-auto max-w-lg px-4 py-8 sm:px-6">
+      <h1 className="text-2xl font-bold text-text-primary">Nueva reserva</h1>
+      <p className="mt-1 text-sm text-text-secondary">
+        Completá los datos para crear una solicitud de reserva
+      </p>
 
-        <form className="grid" onSubmit={handleSubmit}>
-          <div className="form-grid">
-            <label>
-              Espacio
-              <select
-                value={form.espacio_id}
-                onChange={(event) => setForm({ ...form, espacio_id: Number(event.target.value) })}
-                required
-              >
-                {espacios.map((espacio) => (
-                  <option key={espacio.id} value={espacio.id}>
-                    {espacio.nombre} — capacidad {espacio.capacidad}
-                  </option>
-                ))}
-              </select>
-            </label>
+      {error && <div className="message-error mt-4">{error}</div>}
+      {created && (
+        <div className="message-success mt-4">
+          Reserva #{created.id} creada — estado: <strong>{created.estado}</strong>.
+          {created.estado === 'esperando' && ' Queda pendiente de aprobación.'}
+        </div>
+      )}
 
-            <label>
-              Fecha
-              <input type="date" value={form.fecha} onChange={(event) => setForm({ ...form, fecha: event.target.value })} required />
-            </label>
+      <div className="card mt-6">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <label className="input-label">
+            Espacio
+            <select
+              className="input"
+              value={form.espacio_id}
+              onChange={(e) => setForm({ ...form, espacio_id: Number(e.target.value) })}
+              required
+            >
+              <option value={0} disabled>
+                Seleccioná un espacio
+              </option>
+              {espacios.map((espacio) => (
+                <option key={espacio.id} value={espacio.id}>
+                  {espacio.nombre} — Cap. {espacio.capacidad} ({espacio.ubicacion})
+                </option>
+              ))}
+            </select>
+          </label>
 
-            <label>
+          <label className="input-label">
+            Fecha
+            <input
+              className="input"
+              type="date"
+              value={form.fecha}
+              onChange={(e) => setForm({ ...form, fecha: e.target.value })}
+              min={new Date().toISOString().slice(0, 10)}
+              required
+            />
+          </label>
+
+          <div className="grid grid-cols-2 gap-4">
+            <label className="input-label">
               Hora inicio
               <input
+                className="input"
                 type="time"
                 value={form.hora_inicio}
-                onChange={(event) => setForm({ ...form, hora_inicio: event.target.value })}
+                onChange={(e) => setForm({ ...form, hora_inicio: e.target.value })}
                 required
               />
             </label>
-
-            <label>
+            <label className="input-label">
               Hora fin
-              <input type="time" value={form.hora_fin} onChange={(event) => setForm({ ...form, hora_fin: event.target.value })} required />
-            </label>
-
-            <label>
-              Asistentes
               <input
-                min={1}
-                type="number"
-                value={form.asistentes}
-                onChange={(event) => setForm({ ...form, asistentes: Number(event.target.value) })}
+                className="input"
+                type="time"
+                value={form.hora_fin}
+                onChange={(e) => setForm({ ...form, hora_fin: e.target.value })}
                 required
               />
             </label>
           </div>
 
-          <button disabled={loading || espacios.length === 0} type="submit">
-            {loading ? 'Creando...' : 'Crear reserva'}
+          <label className="input-label">
+            Asistentes
+            <input
+              className="input"
+              type="number"
+              min={1}
+              value={form.asistentes}
+              onChange={(e) => setForm({ ...form, asistentes: Number(e.target.value) })}
+              required
+            />
+          </label>
+
+          <button
+            className="btn btn-primary w-full justify-center"
+            disabled={loading || espacios.length === 0}
+            type="submit"
+          >
+            {loading ? 'Creando...' : 'Solicitar reserva'}
           </button>
         </form>
-      </section>
-    </main>
+      </div>
+    </div>
+  );
+}
+
+export default function NuevaReservaPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <NuevaReservaForm />
+    </Suspense>
   );
 }

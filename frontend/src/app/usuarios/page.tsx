@@ -3,8 +3,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { crearUsuario, listarUsuarios, actualizarUsuario, eliminarUsuario, type AdminUsuarioCreate, type AdminUsuarioUpdate } from '@/services/usuarios';
+import {
+  crearUsuario,
+  listarUsuarios,
+  actualizarUsuario,
+  eliminarUsuario,
+  type AdminUsuarioCreate,
+  type AdminUsuarioUpdate,
+} from '@/services/usuarios';
 import type { AuthUser } from '@/types/auth';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 const initialForm: AdminUsuarioCreate = {
   username: '',
@@ -30,7 +38,6 @@ export default function UsuariosPage() {
 
   const [form, setForm] = useState<AdminUsuarioCreate>(initialForm);
   const [creating, setCreating] = useState(false);
-  
   const [editing, setEditing] = useState<EditingState | null>(null);
 
   const loadUsuarios = useCallback(async () => {
@@ -80,7 +87,6 @@ export default function UsuariosPage() {
       if (editing.email.trim()) data.email = editing.email.trim();
       if (editing.password?.trim()) data.password = editing.password.trim();
       data.rol = editing.rol;
-      
       await actualizarUsuario(id, data);
       setEditing(null);
       await loadUsuarios();
@@ -101,29 +107,36 @@ export default function UsuariosPage() {
   }
 
   function startEdit(usuario: AuthUser) {
-    setEditing({ id: usuario.id, username: usuario.username, email: usuario.email, rol: usuario.rol as 'admin' | 'usuario', password: '' });
+    setEditing({
+      id: usuario.id,
+      username: usuario.username,
+      email: usuario.email,
+      rol: usuario.rol as 'admin' | 'usuario',
+      password: '',
+    });
   }
 
   if (authLoading || !isAuthenticated || !isAdmin) {
-    return <main className="page"><p>Redirigiendo...</p></main>;
+    return <LoadingSpinner />;
   }
 
   return (
-    <main className="page grid">
-      <section className="card grid">
-        <h1>Administrar Usuarios</h1>
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-text-primary sm:text-3xl">Administrar usuarios</h1>
+        <p className="mt-1 text-text-secondary">Creá y gestioná los usuarios del sistema</p>
+      </div>
 
-        {error && <div className="error">{error}</div>}
-        {loading && <p>Cargando usuarios...</p>}
+      {error && <div className="message-error mb-6">{error}</div>}
 
-        <form
-          onSubmit={handleCreate}
-          style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'end', flexWrap: 'wrap' }}
-        >
-          <div>
-            <label htmlFor="nuevo-username">Usuario</label>
+      {/* Create form */}
+      <div className="card mb-6">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-text-muted">Nuevo usuario</h2>
+        <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-3">
+          <label className="input-label flex-1 min-w-[140px]">
+            Usuario
             <input
-              id="nuevo-username"
+              className="input"
               value={form.username}
               onChange={(e) => setForm({ ...form, username: e.target.value })}
               placeholder="Ej. juanperez"
@@ -131,22 +144,22 @@ export default function UsuariosPage() {
               minLength={3}
               maxLength={80}
             />
-          </div>
-          <div>
-            <label htmlFor="nuevo-email">Email</label>
+          </label>
+          <label className="input-label flex-1 min-w-[180px]">
+            Email
             <input
-              id="nuevo-email"
+              className="input"
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               placeholder="juan@ejemplo.com"
               required
             />
-          </div>
-          <div>
-            <label htmlFor="nuevo-password">Contraseña</label>
+          </label>
+          <label className="input-label flex-1 min-w-[140px]">
+            Contraseña
             <input
-              id="nuevo-password"
+              className="input"
               type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -154,47 +167,55 @@ export default function UsuariosPage() {
               required
               minLength={6}
             />
-          </div>
-          <div>
-            <label htmlFor="nuevo-rol">Rol</label>
+          </label>
+          <label className="input-label w-28">
+            Rol
             <select
-              id="nuevo-rol"
+              className="input"
               value={form.rol}
               onChange={(e) => setForm({ ...form, rol: e.target.value as 'admin' | 'usuario' })}
             >
               <option value="usuario">Usuario</option>
               <option value="admin">Admin</option>
             </select>
-          </div>
-          <button type="submit" disabled={creating}>
-            {creating ? 'Creando...' : 'Crear Usuario'}
+          </label>
+          <button className="btn btn-primary" type="submit" disabled={creating}>
+            {creating ? 'Creando...' : 'Crear usuario'}
           </button>
         </form>
+      </div>
 
-        {!loading && (
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Usuario</th>
-                <th>Email</th>
-                <th>Rol</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {usuarios.length === 0 ? (
+      {/* Table */}
+      {loading && <LoadingSpinner />}
+
+      {!loading && usuarios.length === 0 && (
+        <div className="card py-12 text-center">
+          <p className="text-text-muted">No hay usuarios registrados.</p>
+        </div>
+      )}
+
+      {!loading && usuarios.length > 0 && (
+        <div className="card p-0 overflow-hidden">
+          <div className="table-wrap">
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={5}>No hay usuarios registrados.</td>
+                  <th>ID</th>
+                  <th>Usuario</th>
+                  <th>Email</th>
+                  <th>Rol</th>
+                  <th>Acciones</th>
                 </tr>
-              ) : (
-                usuarios.map((usuario) => (
+              </thead>
+              <tbody>
+                {usuarios.map((usuario) => (
                   <tr key={usuario.id}>
                     {editing?.id === usuario.id ? (
                       <>
-                        <td>{usuario.id}</td>
+                        <td className="text-text-muted">{usuario.id}</td>
                         <td>
                           <input
+                            className="input"
                             value={editing.username}
                             onChange={(e) => setEditing({ ...editing, username: e.target.value })}
                             minLength={3}
@@ -204,6 +225,7 @@ export default function UsuariosPage() {
                         </td>
                         <td>
                           <input
+                            className="input"
                             type="email"
                             value={editing.email}
                             onChange={(e) => setEditing({ ...editing, email: e.target.value })}
@@ -212,6 +234,7 @@ export default function UsuariosPage() {
                         </td>
                         <td>
                           <select
+                            className="input"
                             value={editing.rol}
                             onChange={(e) => setEditing({ ...editing, rol: e.target.value as 'admin' | 'usuario' })}
                           >
@@ -220,44 +243,57 @@ export default function UsuariosPage() {
                           </select>
                         </td>
                         <td>
-                          <div style={{ display: 'flex', gap: '0.5rem', flexDirection: 'column' }}>
+                          <div className="flex flex-col gap-2">
                             <input
+                              className="input"
                               type="password"
                               value={editing.password}
                               onChange={(e) => setEditing({ ...editing, password: e.target.value })}
                               placeholder="Nueva clave (opcional)"
                               minLength={6}
                             />
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                              <button onClick={() => handleUpdate(usuario.id)} type="button">Guardar</button>
-                              <button className="danger" onClick={() => setEditing(null)} type="button">Cancelar</button>
+                            <div className="flex gap-2">
+                              <button className="btn btn-success btn-sm" onClick={() => handleUpdate(usuario.id)} type="button">
+                                Guardar
+                              </button>
+                              <button className="btn btn-secondary btn-sm" onClick={() => setEditing(null)} type="button">
+                                Cancelar
+                              </button>
                             </div>
                           </div>
                         </td>
                       </>
                     ) : (
                       <>
-                        <td>{usuario.id}</td>
-                        <td>{usuario.username}</td>
+                        <td className="text-text-muted">{usuario.id}</td>
+                        <td className="font-medium">{usuario.username}</td>
                         <td>{usuario.email}</td>
-                        <td>{usuario.rol}</td>
                         <td>
-                          <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button onClick={() => startEdit(usuario)} type="button">Editar</button>
+                          <span className={`badge ${usuario.rol === 'admin' ? 'badge-info' : 'badge-neutral'}`}>
+                            {usuario.rol}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="flex gap-2">
+                            <button className="btn btn-secondary btn-sm" onClick={() => startEdit(usuario)} type="button">
+                              Editar
+                            </button>
                             {user?.id !== usuario.id && (
-                              <button className="danger" onClick={() => handleDelete(usuario.id)} type="button">Eliminar</button>
+                              <button className="btn btn-danger btn-sm" onClick={() => handleDelete(usuario.id)} type="button">
+                                Eliminar
+                              </button>
                             )}
                           </div>
                         </td>
                       </>
                     )}
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
-      </section>
-    </main>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

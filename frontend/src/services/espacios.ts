@@ -1,5 +1,5 @@
 import { apiFetch } from './api';
-import type { Espacio, EspacioCreate, EspacioUpdate } from '@/types/espacio';
+import type { Espacio, EspacioCreate, EspacioUpdate, DisponibilidadSlot } from '@/types/espacio';
 
 export function listarEspacios(): Promise<Espacio[]> {
   return apiFetch<Espacio[]>('/espacios');
@@ -17,4 +17,8 @@ export function actualizarEspacio(id: number, data: EspacioUpdate): Promise<Espa
     method: 'PUT',
     body: JSON.stringify(data),
   });
+}
+
+export function getDisponibilidad(espacioId: number, fecha: string): Promise<DisponibilidadSlot[]> {
+  return apiFetch<DisponibilidadSlot[]>(`/espacios/${espacioId}/disponibilidad?fecha=${fecha}`);
 }

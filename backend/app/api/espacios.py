@@ -1,11 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import date, time
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.crud.espacios import create_espacio, get_espacio_by_nombre, update_espacio
+from app.crud.reservas import get_reservas_bloqueantes
 from app.db import get_db
 from app.deps import get_current_user, require_admin
 from app.models import Espacio
 from app.models.usuario import Usuario
+from app.schemas.disponibilidad import DisponibilidadSlot
 from app.schemas.espacio import EspacioCreate, EspacioResponse, EspacioUpdate
 
 
@@ -35,6 +39,45 @@ def obtener_espacio(
             detail="Espacio no encontrado",
         )
     return espacio
+
+
+@router.get("/{espacio_id}/disponibilidad", response_model=list[DisponibilidadSlot])
+def obtener_disponibilidad(
+    espacio_id: int,
+    fecha: date = Query(..., description="Fecha en formato YYYY-MM-DD"),
+    db: Session = Depends(get_db),
+):
+    """Obtener disponibilidad horaria de un espacio para una fecha dada. No requiere autenticación."""
+    espacio = db.query(Espacio).filter(Espacio.id == espacio_id).first()
+    if not espacio:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Espacio no encontrado",
+        )
+
+    slots: list[DisponibilidadSlot] = []
+    hora_apertura = 7
+    hora_cierre = 20
+
+    for h in range(hora_apertura, hora_cierre):
+        slot_inicio = time(h, 0)
+        slot_fin = time(h + 1, 0)
+
+        if espacio.estado == "mantenimiento":
+            estado = "mantenimiento"
+        else:
+            bloqueantes = get_reservas_bloqueantes(db, espacio_id, fecha, slot_inicio, slot_fin)
+            estado = "ocupado" if bloqueantes else "libre"
+
+        slots.append(
+            DisponibilidadSlot(
+                hora_inicio=slot_inicio.strftime("%H:%M"),
+                hora_fin=slot_fin.strftime("%H:%M"),
+                estado=estado,
+            )
+        )
+
+    return slots
 
 
 @router.post("", response_model=EspacioResponse, status_code=status.HTTP_201_CREATED)

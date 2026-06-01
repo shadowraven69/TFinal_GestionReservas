@@ -4,9 +4,9 @@ FROM node:20-alpine
 # Establecer el directorio de trabajo
 WORKDIR /app
 
-# Copiar el archivo de paquetes y instalar dependencias
+# Copiar dependencias ya instaladas (npm install ya se ejecutó en el host)
 COPY package*.json ./
-RUN npm install
+COPY node_modules ./node_modules
 
 # Copiar el resto del código
 COPY . .

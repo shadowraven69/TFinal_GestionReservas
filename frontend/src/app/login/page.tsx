@@ -1,7 +1,8 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
@@ -12,10 +13,9 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  if (isAuthenticated) {
-    router.replace('/');
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated) router.replace('/');
+  }, [isAuthenticated, router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,7 +25,7 @@ export default function LoginPage() {
       await login(username, password);
       const rawUser = window.localStorage.getItem('user');
       const user = rawUser ? (JSON.parse(rawUser) as { rol: string }) : null;
-      router.replace(user?.rol === 'admin' ? '/admin/reservas' : '/');
+      router.replace(user?.rol === 'admin' ? '/admin' : '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
     } finally {
@@ -34,42 +34,62 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="page grid">
-      <section className="card grid">
-        <h1>Iniciar sesión</h1>
-        {error && <div className="error">{error}</div>}
-        <form className="grid" onSubmit={handleSubmit}>
-          <div className="form-grid">
-            <label>
+    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+        <div className="mb-8 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-primary-600 text-lg font-bold text-white">
+            IC
+          </div>
+          <h1 className="mt-4 text-2xl font-bold text-text-primary">Iniciar sesión</h1>
+          <p className="mt-1 text-sm text-text-secondary">
+            Ingresá tus credenciales para continuar
+          </p>
+        </div>
+
+        <div className="card">
+          {error && <div className="message-error mb-4">{error}</div>}
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <label className="input-label">
               Usuario
               <input
+                className="input"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                placeholder="Tu nombre de usuario"
                 required
                 minLength={3}
                 maxLength={80}
               />
             </label>
-            <label>
+
+            <label className="input-label">
               Contraseña
               <input
+                className="input"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
                 required
                 minLength={6}
               />
             </label>
-          </div>
-          <button disabled={loading} type="submit">
-            {loading ? 'Ingresando...' : 'Ingresar'}
-          </button>
-        </form>
-        <p>
-          ¿No tenés cuenta? <a href="/register">Registrate</a>
-        </p>
-      </section>
-    </main>
+
+            <button className="btn btn-primary w-full justify-center" disabled={loading} type="submit">
+              {loading ? 'Ingresando...' : 'Ingresar'}
+            </button>
+          </form>
+
+          <p className="mt-4 text-center text-sm text-text-secondary">
+            ¿No tenés cuenta?{' '}
+            <Link href="/register" className="font-medium text-primary-600 hover:text-primary-700">
+              Registrate
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
