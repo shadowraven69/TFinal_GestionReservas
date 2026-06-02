@@ -1,19 +1,28 @@
-# Usar una imagen base de Node.js
-FROM node:20-alpine
-
-# Establecer el directorio de trabajo
+FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Copiar dependencias ya instaladas (npm install ya se ejecutó en el host)
-COPY package*.json ./
-COPY node_modules ./node_modules
+COPY package.json package-lock.json ./
+RUN npm ci
 
-# Copiar el resto del código
 COPY . .
 
-# Exponer el puerto donde correrá la aplicación
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
+RUN npm run build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/.next/standalone ./
+
+RUN chgrp -R 0 /app && chmod -R g+rwX /app
+
 EXPOSE 3000
 
-# Comando para ejecutar la aplicación en desarrollo
-# En producción, se usaría "npm start" después de "npm run build"
-CMD ["npm", "run", "dev"]
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
